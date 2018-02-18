@@ -1,9 +1,3 @@
-/******************************************************************************/
-/***                                                                        ***/
-/***                       Preprocessing  Directives                        ***/
-/***                                                                        ***/
-/******************************************************************************/
-
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -13,6 +7,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "sharedssl.h"
 
 #define HOST "localhost"
 #define PORT 8765
@@ -26,23 +21,40 @@
 #define FMT_NO_VERIFY "ECE568-CLIENT: Certificate does not verify\n"
 #define FMT_INCORRECT_CLOSE "ECE568-CLIENT: Premature close\n"
 
-/******************************************************************************/
-/***                                                                        ***/
-/***                       Preprocessing  Directives                        ***/
-/***                                                                        ***/
-/******************************************************************************/
 
 int main(int argc, char **argv)
 {
-  int len, sock, port=PORT;
+  int len, sock, port=PORT, err;
   char *host=HOST;
   struct sockaddr_in addr;
   struct hostent *host_entry;
   char buf[256];
   char *secret = "What's the question?";
-  
+
+  BIO *sbio;
+  SSL_CTX *ssl_ctx;
+  SSL *ssl;
+  X509 *server_cert;
+
+  init_ssl();
+
+  ssl_ctx = SSL_CTX_new(SSLv3_client_method());
+
+  // Enable certificate validation
+  SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
+
+  // Configure the CA trust store to be used
+  if (SSL_CTX_load_verify_locations(ssl_ctx, "568ca.pem", NULL) != 1) {
+    fprintf(stderr, "Couldn't load certificate trust store.\n");
+    return;
+  }
+
+  err = init_certs(ssl_ctx, "alice.pem");
+  if(err != 0){
+    printf(FMT_NO_VERIFY);    
+    return;
+  }
   /*Parse command line arguments*/
-  
   switch(argc){
     case 1:
       break;
@@ -82,7 +94,25 @@ int main(int argc, char **argv)
   if(connect(sock,(struct sockaddr *)&addr, sizeof(addr))<0)
     perror("connect");
   
+  // Create the SSL connection
+  sbio = BIO_new_ssl_connect(ssl_ctx);
+  BIO_get_ssl(sbio, &ssl); 
+  if(!ssl) {
+    fprintf(stderr, "Can't locate SSL pointer\n");
+    return;
+  }
+
+  // Recover the server's certificate
+  show_cert(ssl);
+  server_cert = SSL_get_peer_certificate(ssl); /* get the server's certificate */
+  if (server_cert == NULL) {
+    printf("No server cert\n");
+    // The handshake was successful although the server did not provide a certificate
+    // Most likely using an insecure anonymous cipher suite... get out!
+  }
+
   send(sock, secret, strlen(secret),0);
+
   len = recv(sock, &buf, 255, 0);
   buf[len]='\0';
   
