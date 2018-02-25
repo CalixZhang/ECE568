@@ -11,5 +11,7 @@
 #include <arpa/inet.h>
 
 void init_ssl(void);
-int init_certs(SSL_CTX *ssl_ctx, char *cert_name);
+int init_certs(char *keyfile,char *password);
 void show_cert(SSL* ssl);
+int std_exit(char *out);
+int ssl_exit(char *out);

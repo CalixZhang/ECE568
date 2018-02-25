@@ -1,1 +1,4 @@
-To Be Continued
+#Murton Liu, 1002734231, murton.liu@mail.utoronto.ca
+#first2 last2, studentnum2, e-mail address2
+
+In order to get the SSL encryption working for this lab, we created a context structure on both the server and client side using their respective certificates and passwords. Similarly for both sides of the connection, we then created a BIO object and "connected" it to the socket that was created for us. With both sides certificates and relevant objects set up, we then initiated the SSL handshake, making sure that the server supported the encryption required by the client and other such requirements laid out in the lab handout. Upon a successful connection, we check on both sides the common name, email, and CA of each peer certificate to ensure that we are connecting to a trusted source. Upon ensuring all of this, the client is free to send the secret and await a reply from the server. Assuming everything works on that end, we then free the context structure and shut down the SSL connection, as well as the client and server.  
